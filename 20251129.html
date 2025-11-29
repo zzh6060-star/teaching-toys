@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>转盘实验模拟：7 个扇形</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --accent: #38bdf8;
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system,BlinkMacSystemFont,"SF Pro Text",
+                   "Helvetica Neue",Arial,sans-serif;
+      background: var(--bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #111827;
+    }
+    .app {
+      width: min(1024px, 100vw - 24px);
+      background: #fff;
+      border-radius: 26px;
+      box-shadow: 0 20px 40px rgba(15,23,42,.18);
+      padding: 18px 24px 24px;
+      display: grid;
+      grid-template-columns: minmax(260px, 360px) 1fr;
+      gap: 22px;
+    }
+    .app-header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .app-title {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .app-subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    /* 左边：转盘区域 */
+    .scene {
+      background: radial-gradient(circle at 20% 0%, #e0f2fe 0, #bfdbfe 40%, #93c5fd 100%);
+      border-radius: var(--radius);
+      position: relative;
+      min-height: 320px;
+      padding: 14px 10px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .scene-label {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #1f2937;
+    }
+
+    .spinner-wrapper {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .spinner {
+      width: 210px;
+      height: 210px;
+      border-radius: 50%;
+      background:
+        conic-gradient(
+          from -90deg,
+          #ef4444 0deg 51.4286deg,        /* 红 */
+          #22c55e 51.4286deg 102.8571deg, /* 绿 */
+          #eab308 102.8571deg 154.2857deg,/* 黄 */
+          #ef4444 154.2857deg 205.7143deg,/* 红 */
+          #eab308 205.7143deg 257.1429deg,/* 黄 */
+          #ef4444 257.1429deg 308.5714deg,/* 红 */
+          #22c55e 308.5714deg 360deg      /* 绿 */
+        );
+      box-shadow: 0 10px 25px rgba(30,64,175,.55);
+      border: 3px solid #0f172a20;
+      transition: transform 2.3s cubic-bezier(.25,.9,.35,1.02);
+    }
+    .spinner-center {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #f9fafb;
+      border: 3px solid #0f172a;
+      z-index: 3;
+    }
+    .pointer {
+      position: absolute;
+      top: 10px;
+      width: 0;
+      height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-bottom: 32px solid #2563eb;
+      filter: drop-shadow(0 3px 4px rgba(37,99,235,.55));
+      z-index: 4;
+    }
+    .pointer-base {
+      position: absolute;
+      top: 34px;
+      width: 24px;
+      height: 8px;
+      border-radius: 999px;
+      background: #0f172a;
+      z-index: 2;
+    }
+
+    .last-result-box {
+      margin-top: 8px;
+      font-size: 14px;
+      background: #e0f2fe;
+      padding: 5px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #0f172a;
+    }
+    .last-result-box .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(15,23,42,.45);
+    }
+    .dot.red   { background:#ef4444; }
+    .dot.green { background:#22c55e; }
+    .dot.yellow{ background:#eab308; }
+
+    /* 右边：控制+统计 */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card {
+      background: #f8fafc;
+      border-radius: var(--radius);
+      padding: 12px 14px 14px;
+      border: 1px solid #e2e8f0;
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .btn {
+      border-radius: 999px;
+      border: none;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg,#0ea5e9,#2563eb);
+      color: #f9fafb;
+      box-shadow: 0 8px 16px rgba(37,99,235,.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn.secondary {
+      background: #e2e8f0;
+      color: #0f172a;
+      box-shadow: none;
+    }
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 10px rgba(37,99,235,.25);
+    }
+    .btn:disabled {
+      opacity: .6;
+      cursor: default;
+      box-shadow: none;
+    }
+    label {
+      font-size: 13px;
+      color: #475569;
+    }
+    input[type="number"] {
+      width: 80px;
+      padding: 5px 6px;
+      border-radius: 999px;
+      border: 1px solid #cbd5f5;
+      font-size: 14px;
+      text-align: center;
+      outline: none;
+    }
+    input[type="number"]:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37,99,235,.25);
+    }
+
+    .stats-line {
+      font-size: 14px;
+      margin-top: 3px;
+    }
+    .stats-line .value {
+      font-weight: 600;
+      margin: 0 4px;
+    }
+
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      margin-top: 8px;
+      height: 90px;
+    }
+    .bar {
+      flex: 1;
+      border-radius: 14px 14px 4px 4px;
+      background: #e5e7eb;
+      position: relative;
+      overflow: hidden;
+    }
+    .bar-fill {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      border-radius: 14px 14px 0 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      font-size: 13px;
+      padding-bottom: 3px;
+      color: #0f172a;
+    }
+    .bar-fill.red {
+      background: linear-gradient(180deg,#fecaca,#ef4444);
+      color: #111827;
+    }
+    .bar-fill.green {
+      background: linear-gradient(180deg,#bbf7d0,#22c55e);
+    }
+    .bar-fill.yellow {
+      background: linear-gradient(180deg,#fef9c3,#eab308);
+    }
+    .bar-label {
+      text-align: center;
+      margin-top: 2px;
+      font-size: 13px;
+      color: #4b5563;
+    }
+
+    .note {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 760px) {
+      body { align-items: stretch; }
+      .app {
+        margin: 6px auto;
+        grid-template-columns: 1fr;
+      }
+      .scene {
+        min-height: 280px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <div>
+      <div class="app-title">转盘概率实验：红、绿、黄三色</div>
+      <div class="app-subtitle">
+        7 个等分扇形（3 红，2 绿，2 黄），用频率来体验概率。
+      </div>
+    </div>
+  </header>
+
+  <!-- 左边：转盘 -->
+  <section class="scene">
+    <div class="scene-label">教材情境示意</div>
+    <div class="spinner-wrapper">
+      <div class="pointer"></div>
+      <div class="pointer-base"></div>
+      <div class="spinner" id="spinner"></div>
+      <div class="spinner-center"></div>
+    </div>
+    <div id="lastResultBox" class="last-result-box" style="display:none;">
+      <span>本次指向：</span>
+      <span id="lastResultDot" class="dot"></span>
+      <span id="lastResultText"></span>
+    </div>
+  </section>
+
+  <!-- 右边：操作和统计 -->
+  <section class="panel">
+
+    <div class="card">
+      <h2>操作区</h2>
+      <div class="controls-row">
+        <button class="btn" id="btnSpin">转一次（有动画）</button>
+        <button class="btn secondary" id="btnReset">重置统计</button>
+      </div>
+      <div class="controls-row">
+        <label for="numSpins">快速模拟次数：</label>
+        <input type="number" id="numSpins" min="10" max="100000" value="100" />
+        <button class="btn secondary" id="btnSimulate">开始模拟</button>
+      </div>
+      <div class="note">
+        说明：转盘是自由停止的，7 个扇形大小相同，指向每个扇形的可能性视为相等。
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>颜色统计</h2>
+      <div class="stats-line">
+        总共转了 <span class="value" id="totalCount">0</span> 次。
+      </div>
+      <div class="stats-line">
+        红色：<span class="value" id="redCount">0</span> 次，
+        频率 ≈ <span class="value" id="redFreq">0</span>
+      </div>
+      <div class="stats-line">
+        黄色：<span class="value" id="yellowCount">0</span> 次，
+        频率 ≈ <span class="value" id="yellowFreq">0</span>
+      </div>
+      <div class="stats-line">
+        绿色：<span class="value" id="greenCount">0</span> 次，
+        频率 ≈ <span class="value" id="greenFreq">0</span>
+      </div>
+
+      <div class="bar-chart">
+        <div class="bar">
+          <div class="bar-fill red" id="barRed" style="height:0%;">0%</div>
+          <div class="bar-label">红</div>
+        </div>
+        <div class="bar">
+          <div class="bar-fill yellow" id="barYellow" style="height:0%;">0%</div>
+          <div class="bar-label">黄</div>
+        </div>
+        <div class="bar">
+          <div class="bar-fill green" id="barGreen" style="height:0%;">0%</div>
+          <div class="bar-label">绿</div>
+        </div>
+      </div>
+
+      <div class="note">
+        理论概率：红色 <strong>3/7</strong>，黄色 <strong>2/7</strong>，绿色 <strong>2/7</strong>。
+        随着模拟次数增多，统计频率会逐渐接近这些数值。
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>课堂中的三个事件</h2>
+      <div class="stats-line">
+        (1) 指针指向红色：
+        频率 ≈ <span class="value" id="event1Freq">0</span>
+        （理论值：<strong>3/7 ≈ 0.429</strong>）
+      </div>
+      <div class="stats-line">
+        (2) 指针指向红色或黄色：
+        频率 ≈ <span class="value" id="event2Freq">0</span>
+        （理论值：<strong>5/7 ≈ 0.714</strong>）
+      </div>
+      <div class="stats-line">
+        (3) 指针不指向红色：
+        频率 ≈ <span class="value" id="event3Freq">0</span>
+        （理论值：<strong>4/7 ≈ 0.571</strong>）
+      </div>
+      <div class="note">
+        这里把“指向红色”记作事件 A，从实验中看
+        P(A)、P(A∪B) 和 P(A<sup>c</sup>) 的频率，联系到课本中的公式。
+      </div>
+    </div>
+
+  </section>
+</div>
+
+<script>
+  // 颜色顺序：7 个扇形（从上方开始顺时针）
+  // 与图一致：红、绿、黄、红、黄、红、绿
+  const sectorColors = ["red","green","yellow","red","yellow","red","green"];
+  const colorText = { red:"红色", green:"绿色", yellow:"黄色" };
+
+  const state = {
+    total: 0,
+    red: 0,
+    green: 0,
+    yellow: 0,
+    spinning: false,
+    rotation: 0   // 当前旋转角度（度）
+  };
+
+  const spinner = document.getElementById("spinner");
+  const btnSpin = document.getElementById("btnSpin");
+  const btnReset = document.getElementById("btnReset");
+  const btnSimulate = document.getElementById("btnSimulate");
+  const numSpinsInput = document.getElementById("numSpins");
+
+  const totalSpan = document.getElementById("totalCount");
+  const redSpan = document.getElementById("redCount");
+  const yellowSpan = document.getElementById("yellowCount");
+  const greenSpan = document.getElementById("greenCount");
+  const redFreqSpan = document.getElementById("redFreq");
+  const yellowFreqSpan = document.getElementById("yellowFreq");
+  const greenFreqSpan = document.getElementById("greenFreq");
+
+  const barRed = document.getElementById("barRed");
+  const barYellow = document.getElementById("barYellow");
+  const barGreen = document.getElementById("barGreen");
+
+  const event1FreqSpan = document.getElementById("event1Freq");
+  const event2FreqSpan = document.getElementById("event2Freq");
+  const event3FreqSpan = document.getElementById("event3Freq");
+
+  const lastBox = document.getElementById("lastResultBox");
+  const lastDot = document.getElementById("lastResultDot");
+  const lastText = document.getElementById("lastResultText");
+
+  const sectorAngle = 360 / 7;
+
+  function recordColor(color) {
+    state.total += 1;
+    state[color] += 1;
+  }
+
+  function updateStats() {
+    const total = state.total || 1;
+
+    totalSpan.textContent = state.total;
+    redSpan.textContent = state.red;
+    yellowSpan.textContent = state.yellow;
+    greenSpan.textContent = state.green;
+
+    const freqRed = state.red / total;
+    const freqYellow = state.yellow / total;
+    const freqGreen = state.green / total;
+
+    redFreqSpan.textContent = freqRed.toFixed(3);
+    yellowFreqSpan.textContent = freqYellow.toFixed(3);
+    greenFreqSpan.textContent = freqGreen.toFixed(3);
+
+    const pRed = Math.round(freqRed * 100);
+    const pYellow = Math.round(freqYellow * 100);
+    const pGreen = Math.round(freqGreen * 100);
+
+    barRed.style.height = pRed + "%";
+    barRed.textContent = pRed + "%";
+
+    barYellow.style.height = pYellow + "%";
+    barYellow.textContent = pYellow + "%";
+
+    barGreen.style.height = pGreen + "%";
+    barGreen.textContent = pGreen + "%";
+
+    // 三个事件的频率
+    const event1 = freqRed;
+    const event2 = (state.red + state.yellow) / total; // 红或黄
+    const event3 = (state.total - state.red) / total;  // 不红
+
+    event1FreqSpan.textContent = event1.toFixed(3);
+    event2FreqSpan.textContent = event2.toFixed(3);
+    event3FreqSpan.textContent = event3.toFixed(3);
+  }
+
+  function showLast(color) {
+    lastBox.style.display = "inline-flex";
+    lastDot.className = "dot " + color;
+    lastText.textContent = colorText[color];
+  }
+
+  function colorFromRotation() {
+    // 计算指针所指扇形的索引
+    // 指针固定在“上方 0°”，转盘旋转 state.rotation。
+    // 指针看到的角度相当于 (360 - rotation) mod 360。
+    let norm = ((90 - (state.rotation % 360)) + 360) % 360;
+    let idx = Math.floor(norm / sectorAngle);
+    if (idx === 7) idx = 0;
+    return sectorColors[idx];
+  }
+
+  function spinOnceAnimated() {
+    if (state.spinning) return;
+    state.spinning = true;
+    btnSpin.disabled = true;
+
+    const extra = 720 + Math.random() * 720; // 2~4 圈
+    state.rotation += extra;
+
+    spinner.style.transition = "transform 2.3s cubic-bezier(.25,.9,.35,1.02)";
+    spinner.style.transform = `rotate(${state.rotation}deg)`;
+  }
+
+  spinner.addEventListener("transitionend", () => {
+    // 动画结束后记录结果
+    const color = colorFromRotation();
+    recordColor(color);
+    updateStats();
+    showLast(color);
+
+    state.spinning = false;
+    btnSpin.disabled = false;
+  });
+
+  function resetAll() {
+    state.total = 0;
+    state.red = 0;
+    state.green = 0;
+    state.yellow = 0;
+    state.rotation = 0;
+    spinner.style.transition = "none";
+    spinner.style.transform = "rotate(0deg)";
+    lastBox.style.display = "none";
+    updateStats();
+  }
+
+  function simulateMany() {
+    let n = parseInt(numSpinsInput.value, 10);
+    if (!Number.isFinite(n) || n <= 0) {
+      alert("请输入一个大于 0 的次数，例如 100。");
+      return;
+    }
+    if (n > 100000) n = 100000;
+
+    for (let i = 0; i < n; i++) {
+      // 快速模拟不需要动画，直接随机扇形
+      const idx = Math.floor(Math.random() * 7);
+      const color = sectorColors[idx];
+      recordColor(color);
+    }
+    updateStats();
+  }
+
+  btnSpin.addEventListener("click", spinOnceAnimated);
+  btnReset.addEventListener("click", resetAll);
+  btnSimulate.addEventListener("click", simulateMany);
+
+  // 初始化
+  updateStats();
+</script>
+</body>
+</html>
