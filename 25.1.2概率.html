@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>25.1.2 概率：纸团与骰子的模拟实验</title>
+  <style>
+    :root {
+      --bg: #f4f5ff;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system,BlinkMacSystemFont,"SF Pro Text",
+                   "Helvetica Neue",Arial,sans-serif;
+      background: var(--bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #111827;
+    }
+    .app {
+      width: min(1160px, 100vw - 24px);
+      background: #fff;
+      border-radius: 26px;
+      box-shadow: 0 20px 40px rgba(15,23,42,.18);
+      padding: 18px 24px 22px;
+      display: grid;
+      grid-template-columns: minmax(340px, 520px) 1fr;
+      gap: 20px;
+    }
+    .app-header {
+      grid-column: 1 / -1;
+      margin-bottom: 4px;
+    }
+    .app-title {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .app-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    /* tabs */
+    .tabs {
+      grid-column: 1 / -1;
+      display: inline-flex;
+      border-radius: 999px;
+      background: #eef2ff;
+      padding: 3px;
+      margin: 4px 0 6px;
+    }
+    .tab-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 16px;
+      font-size: 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      color: #4b5563;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn.active {
+      background: #fff;
+      color: #111827;
+      box-shadow: 0 0 0 1px rgba(129,140,248,.7);
+      font-weight: 600;
+    }
+    .tab-badge {
+      font-size: 12px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #075985;
+    }
+
+    .tab-panel { display: none; grid-column: 1 / -1; }
+    .tab-panel.active { display: contents; }
+
+    /* 左侧场景 */
+    .scene {
+      background: radial-gradient(circle at 10% 0%, #eef2ff 0, #dbeafe 45%, #e0f2fe 100%);
+      border-radius: var(--radius);
+      padding: 12px 10px 14px;
+      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .scene-label {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #1f2937;
+    }
+    .scene-caption {
+      font-size: 13px;
+      color: #4b5563;
+      margin-top: 6px;
+    }
+
+    .panel-right {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card {
+      background: #f9fafb;
+      border-radius: var(--radius);
+      padding: 10px 12px 12px;
+      border: 1px solid #e5e7eb;
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .card h3 {
+      margin: 6px 0 4px;
+      font-size: 14px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .btn {
+      border: none;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 3px 8px rgba(37,99,235,.35);
+    }
+    .btn.secondary {
+      background: #e5e7eb;
+      color: #111827;
+      box-shadow: none;
+    }
+
+    .small-input {
+      width: 80px;
+      padding: 4px 6px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .note {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    .highlight-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      margin-left: 4px;
+    }
+
+    .result-display {
+      font-size: 16px;
+      margin-top: 4px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .result-num {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1d4ed8;
+      margin: 0 4px;
+    }
+
+    table.stats {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    table.stats th,
+    table.stats td {
+      padding: 3px 4px;
+      text-align: center;
+    }
+    table.stats thead {
+      background: #eef2ff;
+    }
+    table.stats tbody tr:nth-child(even) {
+      background: #f3f4f6;
+    }
+
+    .bar-row {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .bar {
+      height: 6px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+    .bar-inner {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #93c5fd, #2563eb);
+      transition: width .3s ease;
+    }
+    .bar-label {
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      color: #4b5563;
+    }
+
+    /* 纸团场景 */
+    .paper-bag {
+      margin-top: 6px;
+      width: 260px;
+      height: 210px;
+      border-radius: 24px;
+      background: radial-gradient(circle at 20% 0%, #e5e7eb 0, #cbd5e1 60%, #9ca3af 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: inset 0 8px 16px rgba(0,0,0,.12);
+    }
+    .bag-mouth {
+      position: absolute;
+      top: 36px;
+      width: 180px;
+      height: 18px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      box-shadow: 0 4px 8px rgba(15,23,42,.4);
+    }
+    .bag-body {
+      position: absolute;
+      top: 44px;
+      width: 220px;
+      height: 120px;
+      background: linear-gradient(to bottom, #facc15, #f59e0b);
+      border-radius: 0 0 80px 80px;
+      box-shadow: 0 10px 14px rgba(15,23,42,.3);
+    }
+    .paper-balls {
+      position: absolute;
+      bottom: 40px;
+      width: 220px;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 14px;
+    }
+    .ball {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #fee2e2;
+      border: 2px solid #f97316;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #b91c1c;
+      box-shadow: 0 2px 4px rgba(0,0,0,.2);
+      position: relative;
+    }
+    .ball.jump {
+      animation: jump .5s ease-out;
+    }
+    @keyframes jump {
+      0%   { transform: translateY(0); }
+      35%  { transform: translateY(-26px); }
+      70%  { transform: translateY(4px); }
+      100% { transform: translateY(0); }
+    }
+
+   /* 骰子场景（3D 小立方体） */
+    .dice-area {
+  margin-top: 10px;
+  width: 260px;
+  height: 210px;
+  border-radius: 24px;
+  background: radial-gradient(circle at 15% 0%, #e5e7eb 0, #d1d5db 60%, #9ca3af 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: inset 0 10px 18px rgba(0,0,0,.16);
+}
+.dice-shadow {
+  position: absolute;
+  bottom: 55px;
+  width: 130px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(15,23,42,.35);
+  filter: blur(8px);
+}
+.dice {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  transform-style: preserve-3d;
+  transform: rotateX(-26deg) rotateY(32deg);
+  transition: transform .4s ease-out;
+}
+.dice.rolling {
+  animation: roll3d .6s ease-in-out;
+}
+@keyframes roll3d {
+  0%   { transform: rotateX(-26deg) rotateY(32deg); }
+  50%  { transform: rotateX(30deg) rotateY(210deg); }
+  100% { transform: rotateX(-26deg) rotateY(32deg); }
+}
+
+/* 三个可见面：正面、顶面、右侧面 */
+.dice-face {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 18px;
+  background: #f9fafb;
+  border: 2px solid #9ca3af;
+  box-shadow: 0 12px 18px rgba(0,0,0,.4);
+  backface-visibility: hidden;
+}
+
+/* 正面：真正显示点数的这一面，用 3x3 网格排布骰点 */
+.dice-face.front {
+  transform: translateZ(45px);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 10px;
+}
+
+/* 顶面和右侧面只做一点渐变，让立体感强一点 */
+.dice-face.top {
+  transform: rotateX(90deg) translateZ(45px);
+  background: linear-gradient(to bottom, #e5e7eb, #cbd5e1);
+}
+.dice-face.right {
+  transform: rotateY(90deg) translateZ(45px);
+  background: linear-gradient(to right, #e5e7eb, #cbd5e1);
+}
+
+/* 正面上 7 个可能的骰点位置（和之前 JS 一样：data-pos=1~7） */
+.pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: transparent;
+  margin: auto;
+}
+.pip.on {
+  background: #111827;
+  box-shadow: 0 0 4px rgba(0,0,0,.4);
+}
+
+/* 文本说明 */
+.dice-face-label {
+  position: absolute;
+  bottom: 24px;
+  font-size: 13px;
+  color: #111827;
+}
+
+    @media (max-width: 860px) {
+      body { align-items: stretch; }
+      .app {
+        margin: 6px auto;
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <div class="app-title">25.1.2 概率：纸团与骰子的模拟实验</div>
+    <div class="app-subtitle">
+      在相同样条件下，用频率来刻画“每种结果出现的可能性大小”。左边是实验情境，右边是统计与思考。
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="balls">
+      实验一：抽纸团
+      <span class="tab-badge">1～5</span>
+    </button>
+    <button class="tab-btn" data-tab="dice">
+      实验二：掷骰子
+      <span class="tab-badge">1～6</span>
+    </button>
+  </div>
+
+  <!-- 实验一：纸团 -->
+  <section class="tab-panel active" data-panel="balls">
+    <section class="scene">
+      <div class="scene-label">情境：从写有 1～5 的五个纸团中随机抽取一个</div>
+
+      <div class="paper-bag">
+        <div class="bag-mouth"></div>
+        <div class="bag-body"></div>
+        <div class="paper-balls">
+          <div class="ball" data-num="1">1</div>
+          <div class="ball" data-num="2">2</div>
+          <div class="ball" data-num="3">3</div>
+          <div class="ball" data-num="4">4</div>
+          <div class="ball" data-num="5">5</div>
+        </div>
+      </div>
+
+      <div class="scene-caption">
+        五个纸团形状、大小、质地完全一样，看上去“谁也不特别”。
+        在看不到纸团的条件下，每个数字被抽到的可能性大小应当是相等的。
+      </div>
+    </section>
+
+    <section class="panel-right">
+      <div class="card">
+        <h2>1. 操作区</h2>
+        <div class="button-row">
+          <button type="button" class="btn" id="btnBallOnce">
+            摸一次（有动画）
+          </button>
+          <button type="button" class="btn secondary" id="btnBallReset">
+            重置统计
+          </button>
+        </div>
+        <div class="button-row" style="align-items:center;">
+          <span style="font-size:13px;color:#4b5563;">快速模拟次数：</span>
+          <input id="inputBallN" class="small-input" type="number" min="1" value="50">
+          <button type="button" class="btn secondary" id="btnBallMany">
+            开始模拟
+          </button>
+        </div>
+        <div class="result-display">
+          本次抽到的数字：<span class="result-num" id="ballLast">－</span>
+        </div>
+        <div class="note">
+          提示：可以先让学生口头预测“哪一个数字最有可能出现”，
+          然后通过多次实验观察每个数字的频率。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2. 统计结果（纸团）</h2>
+        <table class="stats">
+          <thead>
+            <tr>
+              <th>数字</th>
+              <th>出现次数</th>
+              <th>频率</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td id="ballCount1">0</td><td id="ballFreq1">0.000</td></tr>
+            <tr><td>2</td><td id="ballCount2">0</td><td id="ballFreq2">0.000</td></tr>
+            <tr><td>3</td><td id="ballCount3">0</td><td id="ballFreq3">0.000</td></tr>
+            <tr><td>4</td><td id="ballCount4">0</td><td id="ballFreq4">0.000</td></tr>
+            <tr><td>5</td><td id="ballCount5">0</td><td id="ballFreq5">0.000</td></tr>
+          </tbody>
+        </table>
+        <div class="bar-row">
+          <div class="bar-label">
+            <span>总共摸了 <span id="ballTotal">0</span> 次</span>
+            <span>理论上每个 ≈ 1/5 = 0.200</span>
+          </div>
+          <div class="bar"><div class="bar-inner" id="ballBar"></div></div>
+        </div>
+        <div class="note">
+          随着实验次数增多，频率会逐渐接近理论概率
+          <span class="highlight-pill">1/5</span>。
+          可把“抽到数字 1”记作事件 A，观察实验中 P(A) 的频率。
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- 实验二：骰子 -->
+  <section class="tab-panel" data-panel="dice">
+    <section class="scene">
+      <div class="scene-label">情境：掷一枚形状规则、质地均匀的骰子</div>
+
+      <div class="dice-area">
+        <div class="dice-shadow"></div>
+      
+        <!-- 3D 立方体：只有正面有骰点，顶面+右侧面只负责立体感 -->
+        <div class="dice" id="dice">
+          <!-- 正面：用 3x3 网格放 7 个潜在骰点 -->
+          <div class="dice-face front">
+            <div class="pip" data-pos="1"></div>
+            <div class="pip" data-pos="2"></div>
+            <div class="pip" data-pos="3"></div>
+            <div class="pip" data-pos="4"></div>
+            <div class="pip" data-pos="5"></div>
+            <div class="pip" data-pos="6"></div>
+            <div class="pip" data-pos="7"></div>
+          </div>
+      
+          <!-- 顶面 & 右侧面：只做一点渐变阴影 -->
+          <div class="dice-face top"></div>
+          <div class="dice-face right"></div>
+        </div>
+      
+        <div class="dice-face-label">正面显示的点数：1～6 中的一个</div>
+      </div>
+      
+
+      <div class="scene-caption">
+        骰子形状规则、质地均匀，又是随机掷出，
+        因此六种点数出现的可能性大小可以认为是相等的。
+      </div>
+    </section>
+
+    <section class="panel-right">
+      <div class="card">
+        <h2>1. 操作区</h2>
+        <div class="button-row">
+          <button type="button" class="btn" id="btnDiceOnce">
+            掷一次（有动画）
+          </button>
+          <button type="button" class="btn secondary" id="btnDiceReset">
+            重置统计
+          </button>
+        </div>
+        <div class="button-row" style="align-items:center;">
+          <span style="font-size:13px;color:#4b5563;">快速模拟次数：</span>
+          <input id="inputDiceN" class="small-input" type="number" min="1" value="60">
+          <button type="button" class="btn secondary" id="btnDiceMany">
+            开始模拟
+          </button>
+        </div>
+        <div class="result-display">
+          本次掷出的点数：<span class="result-num" id="diceLast">－</span>
+        </div>
+        <div class="note">
+          可让学生先猜“6 会不会比其它点数更容易出现”，
+          再通过大量实验观察：六种点数的频率都趋向于
+          <span class="highlight-pill">1/6</span>。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2. 统计结果（骰子）</h2>
+        <table class="stats">
+          <thead>
+            <tr>
+              <th>点数</th>
+              <th>出现次数</th>
+              <th>频率</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td id="diceCount1">0</td><td id="diceFreq1">0.000</td></tr>
+            <tr><td>2</td><td id="diceCount2">0</td><td id="diceFreq2">0.000</td></tr>
+            <tr><td>3</td><td id="diceCount3">0</td><td id="diceFreq3">0.000</td></tr>
+            <tr><td>4</td><td id="diceCount4">0</td><td id="diceFreq4">0.000</td></tr>
+            <tr><td>5</td><td id="diceCount5">0</td><td id="diceFreq5">0.000</td></tr>
+            <tr><td>6</td><td id="diceCount6">0</td><td id="diceFreq6">0.000</td></tr>
+          </tbody>
+        </table>
+        <div class="bar-row">
+          <div class="bar-label">
+            <span>总共掷了 <span id="diceTotal">0</span> 次</span>
+            <span>理论上每个 ≈ 1/6 ≈ 0.167</span>
+          </div>
+          <div class="bar"><div class="bar-inner" id="diceBar"></div></div>
+        </div>
+        <div class="note">
+          可以把“掷出偶数点数”记作事件 B，从实验中估计 P(B)，
+          并与课本中的概率计算公式进行对比与联系。
+        </div>
+      </div>
+    </section>
+  </section>
+</div>
+
+<script>
+  // 小工具
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // Tab 切换
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const tabPanels  = document.querySelectorAll(".tab-panel");
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      tabButtons.forEach(b => b.classList.toggle("active", b === btn));
+      tabPanels.forEach(p => {
+        p.classList.toggle("active", p.dataset.panel === tab);
+      });
+    });
+  });
+
+  // ===================== 实验一：纸团 =====================
+  const balls = document.querySelectorAll(".ball");
+  const ballLastSpan = document.getElementById("ballLast");
+  const ballCounts = [0,0,0,0,0,0]; // 从索引 1 用到 5
+  const inputBallN = document.getElementById("inputBallN");
+  const ballBar = document.getElementById("ballBar");
+
+  function updateBallStats() {
+    const total = ballCounts.reduce((a,b)=>a+b,0);
+    for (let i=1;i<=5;i++) {
+      document.getElementById("ballCount"+i).textContent = ballCounts[i];
+      const freq = total ? ballCounts[i] / total : 0;
+      document.getElementById("ballFreq"+i).textContent = freq.toFixed(3);
+    }
+    document.getElementById("ballTotal").textContent = total;
+    // 频率接近程度：用“平均偏差”的反向来画进度条，简单起见只看数字1
+    const target = 1/5;
+    const freq1 = total ? ballCounts[1]/total : 0;
+    const diff  = Math.abs(freq1 - target);
+    const score = Math.max(0, 1 - diff / target); // 越接近 1/5，score 越接近 1
+    ballBar.style.width = (score * 100).toFixed(1) + "%";
+  }
+
+  function drawOneBall(animated=true) {
+    const n = randInt(1,5);
+    ballCounts[n] += 1;
+    ballLastSpan.textContent = n;
+    updateBallStats();
+
+    if (animated) {
+      const ball = document.querySelector('.ball[data-num="'+n+'"]');
+      ball.classList.remove("jump");
+      void ball.offsetWidth; // 触发重排，重新播放动画
+      ball.classList.add("jump");
+    }
+  }
+
+  document.getElementById("btnBallOnce").addEventListener("click", () => {
+    drawOneBall(true);
+  });
+
+  document.getElementById("btnBallMany").addEventListener("click", () => {
+    let times = parseInt(inputBallN.value,10);
+    if (!Number.isFinite(times) || times <= 0) times = 50;
+    if (times > 100000) times = 100000;
+    for (let i=0;i<times;i++) drawOneBall(false);
+  });
+
+  document.getElementById("btnBallReset").addEventListener("click", () => {
+    for (let i=1;i<=5;i++) ballCounts[i] = 0;
+    ballLastSpan.textContent = "－";
+    updateBallStats();
+  });
+
+  updateBallStats();
+
+  // ===================== 实验二：骰子 =====================
+  const diceEl = document.getElementById("dice");
+  const pipEls = diceEl.querySelectorAll(".pip");
+  const diceLastSpan = document.getElementById("diceLast");
+  const diceCounts = [0,0,0,0,0,0,0]; // 1..6
+  const inputDiceN = document.getElementById("inputDiceN");
+  const diceBar = document.getElementById("diceBar");
+
+  // pip 位置：1~7 号位置对应 3x3 九宫格中的格子
+  // 布局见 HTML，组合如下：
+  const diceFaces = {
+    1: [4],
+    2: [1,7],
+    3: [1,4,7],
+    4: [1,3,5,7],
+    5: [1,3,4,5,7],
+    6: [1,2,3,5,6,7]
+  };
+
+  function setDiceFace(n) {
+    pipEls.forEach(p => p.classList.remove("on"));
+    const active = diceFaces[n];
+    for (const pos of active) {
+      const pip = diceEl.querySelector('.pip[data-pos="'+pos+'"]');
+      if (pip) pip.classList.add("on");
+    }
+  }
+
+  function updateDiceStats() {
+    const total = diceCounts.reduce((a,b)=>a+b,0);
+    for (let i=1;i<=6;i++) {
+      document.getElementById("diceCount"+i).textContent = diceCounts[i];
+      const freq = total ? diceCounts[i]/total : 0;
+      document.getElementById("diceFreq"+i).textContent = freq.toFixed(3);
+    }
+    document.getElementById("diceTotal").textContent = total;
+    // 用“掷出 6 点”的频率接近 1/6 来画进度条
+    const target = 1/6;
+    const freq6 = total ? diceCounts[6]/total : 0;
+    const diff  = Math.abs(freq6 - target);
+    const score = Math.max(0, 1 - diff / target);
+    diceBar.style.width = (score * 100).toFixed(1) + "%";
+  }
+
+  function rollDiceOnce(animated=true) {
+    const n = randInt(1,6);
+    diceCounts[n] += 1;
+    diceLastSpan.textContent = n;
+    setDiceFace(n);
+    updateDiceStats();
+
+    if (animated) {
+      diceEl.classList.remove("rolling");
+      void diceEl.offsetWidth;
+      diceEl.classList.add("rolling");
+      setTimeout(()=>diceEl.classList.remove("rolling"), 650);
+    }
+  }
+
+  document.getElementById("btnDiceOnce").addEventListener("click", () => {
+    rollDiceOnce(true);
+  });
+
+  document.getElementById("btnDiceMany").addEventListener("click", () => {
+    let times = parseInt(inputDiceN.value,10);
+    if (!Number.isFinite(times) || times <= 0) times = 60;
+    if (times > 100000) times = 100000;
+    for (let i=0;i<times;i++) rollDiceOnce(false);
+  });
+
+  document.getElementById("btnDiceReset").addEventListener("click", () => {
+    for (let i=1;i<=6;i++) diceCounts[i] = 0;
+    diceLastSpan.textContent = "－";
+    updateDiceStats();
+  });
+
+  // 初始状态显示 1 点
+  setDiceFace(1);
+  updateDiceStats();
+</script>
+</body>
+</html>
