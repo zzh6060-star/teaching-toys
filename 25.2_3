@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>例3：三袋摸球的树状图与概率模拟</title>
+  <style>
+    :root {
+      --bg: #f5f5fb;
+      --accent: #2563eb;
+      --accent-soft: #bfdbfe;
+      --border-soft: #e5e7eb;
+      --radius: 18px;
+      --text-main: #111827;
+      --text-soft: #4b5563;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px;
+    }
+
+    .app {
+      width: 1100px;
+      background: white;
+      border-radius: 30px;
+      box-shadow: 0 24px 55px rgba(15, 23, 42, 0.16);
+      padding: 28px 28px 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      column-gap: 22px;
+      row-gap: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      margin: 6px 0 12px;
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .bags-and-tree {
+      background: radial-gradient(circle at 0 0, #e5f0ff 0, #f9fafb 55%);
+      border-radius: 24px;
+      padding: 16px 16px 10px;
+      display: grid;
+      grid-template-rows: auto auto;
+      row-gap: 10px;
+    }
+
+    /* 三个口袋示意 */
+    .bags {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .bag {
+      width: 130px;
+      height: 92px;
+      border-radius: 26px 26px 18px 18px;
+      background: linear-gradient(to bottom, #fef9c3, #fde68a);
+      box-shadow: 0 8px 14px rgba(148, 163, 184, 0.55);
+      position: relative;
+      padding-top: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .bag::before {
+      content: attr(data-label);
+      position: absolute;
+      top: 4px;
+      left: 10px;
+      font-size: 12px;
+      color: #92400e;
+      font-weight: 600;
+    }
+
+    .bag-mouth {
+      position: absolute;
+      top: 14px;
+      left: 8px;
+      right: 8px;
+      height: 8px;
+      border-radius: 12px;
+      background: #f97316;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    .balls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ball {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: white;
+      border: 2px solid #60a5fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #1d4ed8;
+      box-shadow: 0 3px 7px rgba(15, 23, 42, 0.35);
+    }
+
+    .bag-note {
+      text-align: center;
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .tree-wrapper {
+      background: white;
+      border-radius: 20px;
+      padding: 6px 10px 8px;
+      box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
+    }
+
+    .tree-title {
+      font-size: 13px;
+      color: #374151;
+      margin: 0 0 2px;
+    }
+
+    .tree-hint {
+      font-size: 11px;
+      color: #6b7280;
+      margin: 2px 0 4px;
+    }
+
+    svg {
+      width: 100%;
+      height: 230px;
+    }
+
+    .tree-edge {
+      stroke: #cbd5e1;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .tree-label {
+      font-size: 12px;
+      fill: #374151;
+    }
+
+    .tree-label.active {
+      fill: #ef4444;
+      font-weight: 700;
+    }
+
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card {
+      background: #f9fafb;
+      border-radius: 18px;
+      padding: 12px 14px;
+      border: 1px solid var(--border-soft);
+    }
+
+    .card h2 {
+      font-size: 15px;
+      margin: 0 0 6px;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border-radius: 999px;
+      border: none;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 3px 9px rgba(37, 99, 235, 0.45);
+      transition: transform 0.05s ease-out, box-shadow 0.1s ease-out,
+        background 0.15s;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 13px rgba(37, 99, 235, 0.55);
+      background: #1d4ed8;
+    }
+
+    button.secondary {
+      background: white;
+      color: #374151;
+      border: 1px solid #d1d5db;
+      box-shadow: 0 2px 5px rgba(148, 163, 184, 0.35);
+    }
+
+    button.secondary:hover {
+      background: #f3f4f6;
+    }
+
+    input[type="number"] {
+      width: 70px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .small-label {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .result-line {
+      font-size: 14px;
+      margin-top: 6px;
+      color: #111827;
+    }
+
+    .result-line span.badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 13px;
+      margin-left: 3px;
+    }
+
+    .result-line span.vowel {
+      color: #b91c1c;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    th,
+    td {
+      padding: 3px 4px;
+      text-align: center;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    th {
+      background: #e5effe;
+      font-weight: 600;
+      color: #1e3a8a;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .freq-bar-wrapper {
+      height: 7px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+
+    .freq-bar {
+      height: 100%;
+      background: linear-gradient(to right, #60a5fa, #1d4ed8);
+      width: 0%;
+      transition: width 0.25s ease-out;
+    }
+
+    .theory-tag {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .sample-space {
+      margin-top: 4px;
+      font-size: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 6px;
+    }
+
+    .ss-item {
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #312e81;
+    }
+
+    .ss-item.current {
+      background: #f97316;
+      color: white;
+      font-weight: 600;
+    }
+
+    .ss-item .vowel-tag {
+      font-size: 11px;
+      margin-left: 2px;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .foot-note {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- 左侧：情境 + 树状图 -->
+    <div class="left-panel">
+      <div>
+        <h1>例3：三袋摸球的树状图与概率</h1>
+        <p class="subtitle">
+          甲袋：A、B；乙袋：C、D、E；丙袋：H、I。每袋各随机取出 1
+          个小球，观察元音字母的个数。
+        </p>
+      </div>
+
+      <div class="bags-and-tree">
+        <!-- 三个口袋 -->
+        <div class="bags">
+          <div class="bag" data-label="甲袋">
+            <div class="bag-mouth"></div>
+            <div class="balls">
+              <div class="ball">A</div>
+              <div class="ball">B</div>
+            </div>
+          </div>
+          <div class="bag" data-label="乙袋">
+            <div class="bag-mouth"></div>
+            <div class="balls">
+              <div class="ball">C</div>
+              <div class="ball">D</div>
+              <div class="ball">E</div>
+            </div>
+          </div>
+          <div class="bag" data-label="丙袋">
+            <div class="bag-mouth"></div>
+            <div class="balls">
+              <div class="ball">H</div>
+              <div class="ball">I</div>
+            </div>
+          </div>
+        </div>
+        <div class="bag-note">
+          本题中 A、E、I 是元音字母；B、C、D、H 是辅音字母。
+        </div>
+
+        <!-- 树状图 -->
+        <div class="tree-wrapper">
+          <p class="tree-title">树状图：三次取球的所有 12 种可能结果</p>
+          <p class="tree-hint">
+            每次实验时，树上与本次结果对应的 A/…/H/I 会高亮，表示一条路径。
+          </p>
+          <svg viewBox="0 0 520 240">
+            <!-- 第一层：根到 A、B -->
+            <line x1="260" y1="20" x2="170" y2="70" class="tree-edge" />
+            <line x1="260" y1="20" x2="350" y2="70" class="tree-edge" />
+            <text x="170" y="70" class="tree-label" id="node-A">A</text>
+            <text x="350" y="70" class="tree-label" id="node-B">B</text>
+
+            <!-- 第二层：A -> CDE -->
+            <line x1="170" y1="70" x2="120" y2="130" class="tree-edge" />
+            <line x1="170" y1="70" x2="170" y2="130" class="tree-edge" />
+            <line x1="170" y1="70" x2="220" y2="130" class="tree-edge" />
+            <text x="120" y="130" class="tree-label" id="node-CA">C</text>
+            <text x="170" y="130" class="tree-label" id="node-DA">D</text>
+            <text x="220" y="130" class="tree-label" id="node-EA">E</text>
+
+            <!-- 第二层：B -> CDE -->
+            <line x1="350" y1="70" x2="300" y2="130" class="tree-edge" />
+            <line x1="350" y1="70" x2="350" y2="130" class="tree-edge" />
+            <line x1="350" y1="70" x2="400" y2="130" class="tree-edge" />
+            <text x="300" y="130" class="tree-label" id="node-CB">C</text>
+            <text x="350" y="130" class="tree-label" id="node-DB">D</text>
+            <text x="400" y="130" class="tree-label" id="node-EB">E</text>
+
+            <!-- 第三层：每个结点 -> H / I（这里只标 H / I） -->
+            <!-- 在 A 这一侧 -->
+            <!-- CA -->
+            <line x1="120" y1="130" x2="100" y2="200" class="tree-edge" />
+            <line x1="120" y1="130" x2="140" y2="200" class="tree-edge" />
+            <text x="100" y="200" class="tree-label" id="node-HCA">H</text>
+            <text x="140" y="200" class="tree-label" id="node-ICA">I</text>
+
+            <!-- DA -->
+            <line x1="170" y1="130" x2="150" y2="200" class="tree-edge" />
+            <line x1="170" y1="130" x2="190" y2="200" class="tree-edge" />
+            <text x="150" y="200" class="tree-label" id="node-HDA">H</text>
+            <text x="190" y="200" class="tree-label" id="node-IDA">I</text>
+
+            <!-- EA -->
+            <line x1="220" y1="130" x2="200" y2="200" class="tree-edge" />
+            <line x1="220" y1="130" x2="240" y2="200" class="tree-edge" />
+            <text x="200" y="200" class="tree-label" id="node-HEA">H</text>
+            <text x="240" y="200" class="tree-label" id="node-IEA">I</text>
+
+            <!-- 在 B 这一侧 -->
+            <!-- CB -->
+            <line x1="300" y1="130" x2="280" y2="200" class="tree-edge" />
+            <line x1="300" y1="130" x2="320" y2="200" class="tree-edge" />
+            <text x="280" y="200" class="tree-label" id="node-HCB">H</text>
+            <text x="320" y="200" class="tree-label" id="node-ICB">I</text>
+
+            <!-- DB -->
+            <line x1="350" y1="130" x2="330" y2="200" class="tree-edge" />
+            <line x1="350" y1="130" x2="370" y2="200" class="tree-edge" />
+            <text x="330" y="200" class="tree-label" id="node-HDB">H</text>
+            <text x="370" y="200" class="tree-label" id="node-IDB">I</text>
+
+            <!-- EB -->
+            <line x1="400" y1="130" x2="380" y2="200" class="tree-edge" />
+            <line x1="400" y1="130" x2="420" y2="200" class="tree-edge" />
+            <text x="380" y="200" class="tree-label" id="node-HEB">H</text>
+            <text x="420" y="200" class="tree-label" id="node-IEB">I</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：操作与统计 -->
+    <div class="right-panel">
+      <div class="card">
+        <h2>1. 进行一次试验</h2>
+        <div class="controls-row">
+          <button id="btn-once">摸一次（有动画）</button>
+          <span class="small-label">提示：每次从甲、乙、丙三个口袋各取 1 个球。</span>
+        </div>
+        <div class="controls-row">
+          <span class="small-label">快速模拟</span>
+          <input type="number" id="fast-times" min="10" max="10000" value="100" />
+          <span class="small-label">次</span>
+          <button class="secondary" id="btn-fast">开始模拟</button>
+          <button class="secondary" id="btn-reset">重置统计</button>
+        </div>
+        <div class="result-line" id="current-result">
+          本次结果：尚未开始试验。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2. 统计元音个数（A、E、I）</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>元音个数</th>
+              <th>次数</th>
+              <th>频率 ≈</th>
+              <th>与理论值比较</th>
+            </tr>
+          </thead>
+          <tbody id="stat-body">
+            <!-- JS 填充 -->
+          </tbody>
+        </table>
+        <div class="foot-note">
+          理论上共有 2×3×2＝12 个等可能结果：<br />
+          恰好 1 个元音：5 个结果，P=5/12；恰好 2 个元音：4 个结果，P=4/12；<br />
+          恰好 3 个元音：1 个结果，P=1/12；全是辅音（0 个元音）：2 个结果，P=2/12。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>3. 所有 12 种可能结果（样本空间）</h2>
+        <div class="sample-space" id="sample-space"></div>
+        <div class="foot-note">
+          上面每一个小圆角框对应树状图上的一条路径。你可以让学生先数一数哪几个属于“1 个元音”“2 个元音”“3
+          个元音”或“全是辅音”，再用模拟验证频率接近这些比例。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------
+    // 数据与工具函数
+    // -------------------------------
+    const bagA = ["A", "B"];
+    const bagB = ["C", "D", "E"];
+    const bagC = ["H", "I"];
+    const vowels = new Set(["A", "E", "I"]);
+
+    const outcomes = [];
+    for (const a of bagA) {
+      for (const b of bagB) {
+        for (const c of bagC) {
+          outcomes.push(a + b + c);
+        }
+      }
+    }
+
+    // 按元音个数分类
+    function countVowels(triple) {
+      let k = 0;
+      for (const ch of triple) if (vowels.has(ch)) k++;
+      return k;
+    }
+
+    const outcomeMeta = outcomes.map((s) => ({
+      combo: s,
+      vowels: countVowels(s),
+    }));
+
+    // 统计对象：0、1、2、3 个元音
+    const stats = {
+      0: 0,
+      1: 0,
+      2: 0,
+      3: 0,
+    };
+    let totalTrials = 0;
+
+    // 理论概率
+    const theory = {
+      0: 2 / 12,
+      1: 5 / 12,
+      2: 4 / 12,
+      3: 1 / 12,
+    };
+
+    // -------------------------------
+    // 填充样本空间列表
+    // -------------------------------
+    const ssContainer = document.getElementById("sample-space");
+
+    function renderSampleSpace(currentCombo = null) {
+      ssContainer.innerHTML = "";
+      for (const { combo, vowels: k } of outcomeMeta) {
+        const div = document.createElement("div");
+        div.className = "ss-item" + (combo === currentCombo ? " current" : "");
+        const tag =
+          k === 0
+            ? "0 个元音"
+            : k === 3
+            ? "3 个元音"
+            : `${k} 个元音`;
+        div.innerHTML = `${combo}<span class="vowel-tag">(${tag})</span>`;
+        ssContainer.appendChild(div);
+      }
+    }
+
+    renderSampleSpace();
+
+    // -------------------------------
+    // 统计表渲染
+    // -------------------------------
+    const statBody = document.getElementById("stat-body");
+
+    function renderStats() {
+      statBody.innerHTML = "";
+      for (let k = 0; k <= 3; k++) {
+        const tr = document.createElement("tr");
+        const cnt = stats[k];
+        const freq = totalTrials ? cnt / totalTrials : 0;
+        const diff = freq - theory[k];
+        const diffText =
+          totalTrials === 0
+            ? "-"
+            : (diff >= 0 ? "+" : "") + diff.toFixed(3);
+
+        tr.innerHTML = `
+          <td>${k}</td>
+          <td>${cnt}</td>
+          <td>
+            ${freq.toFixed(3)}
+            <div class="freq-bar-wrapper">
+              <div class="freq-bar" style="width:${Math.min(
+                100,
+                freq * 100
+              ).toFixed(1)}%"></div>
+            </div>
+          </td>
+          <td class="theory-tag">
+            理论值：${theory[k].toFixed(3)}，
+            差值：${diffText}
+          </td>
+        `;
+        statBody.appendChild(tr);
+      }
+    }
+
+    renderStats();
+
+    // -------------------------------
+    // 高亮树状图路径
+    // -------------------------------
+    function clearTreeHighlight() {
+      document
+        .querySelectorAll(".tree-label.active")
+        .forEach((el) => el.classList.remove("active"));
+    }
+
+    function highlightPath(combo) {
+      clearTreeHighlight();
+      const [a, b, c] = combo.split("");
+      const id1 = "node-" + a; // A or B
+      const id2 = "node-" + b + a; // 如 C + A = CA
+      const id3 = "node-" + c + b + a; // 如 H + C + A = HCA
+
+      [id1, id2, id3].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("active");
+      });
+    }
+
+    // -------------------------------
+    // 做一次实验
+    // -------------------------------
+    const currentResultEl = document.getElementById("current-result");
+
+    function sampleOnce() {
+      const a = bagA[Math.floor(Math.random() * bagA.length)];
+      const b = bagB[Math.floor(Math.random() * bagB.length)];
+      const c = bagC[Math.floor(Math.random() * bagC.length)];
+      return a + b + c;
+    }
+
+    function describeVowelCount(k) {
+      if (k === 0) return "0 个元音（全是辅音）";
+      if (k === 3) return "3 个元音（全部是元音）";
+      return `${k} 个元音`;
+    }
+
+    function runOneTrial() {
+      const combo = sampleOnce();
+      const k = countVowels(combo);
+      stats[k] += 1;
+      totalTrials += 1;
+      renderStats();
+      highlightPath(combo);
+      renderSampleSpace(combo);
+
+      const charHtml = combo
+        .split("")
+        .map((ch) =>
+          vowels.has(ch)
+            ? `<span class="vowel">${ch}</span>`
+            : ch
+        )
+        .join("－");
+
+      currentResultEl.innerHTML = `本次结果：<span class="badge">${charHtml}</span>，其中 <span class="badge">${describeVowelCount(
+        k
+      )}</span>。`;
+    }
+
+    // -------------------------------
+    // 事件绑定
+    // -------------------------------
+    document.getElementById("btn-once").addEventListener("click", () => {
+      runOneTrial();
+    });
+
+    document.getElementById("btn-fast").addEventListener("click", () => {
+      const timesInput = document.getElementById("fast-times");
+      let n = parseInt(timesInput.value, 10);
+      if (!Number.isFinite(n) || n <= 0) n = 100;
+      n = Math.min(n, 20000); // 防止太大
+      for (let i = 0; i < n; i++) {
+        const combo = sampleOnce();
+        const k = countVowels(combo);
+        stats[k] += 1;
+        totalTrials += 1;
+      }
+      renderStats();
+      // 快速模拟不需要高亮特定路径，只是更新统计和样本空间
+      clearTreeHighlight();
+      renderSampleSpace(null);
+      currentResultEl.innerHTML = `已快速模拟 ${n} 次。从总共 ${totalTrials} 次试验中可以看到：各类结果的频率逐渐接近对应的理论概率。`;
+    });
+
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      stats[0] = stats[1] = stats[2] = stats[3] = 0;
+      totalTrials = 0;
+      renderStats();
+      clearTreeHighlight();
+      renderSampleSpace();
+      currentResultEl.textContent = "本次结果：尚未开始试验。";
+    });
+  </script>
+</body>
+</html>
