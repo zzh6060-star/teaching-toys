@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>掷硬币实验 表25-3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 10px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px;
+            text-align: center;
+        }
+        th {
+            background-color: #f3f3f3;
+        }
+        .group-input {
+            width: 80%;
+            padding: 4px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .btn:active {
+            background-color: #3c8f40;
+        }
+        .note {
+            font-size: 13px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+<h1>掷硬币实验</h1>
+<h2>用频率估计“正面向上”的概率</h2>
+
+<p>
+    全班分成 <strong>10 组</strong>，每组同学都掷硬币 <strong>50 次</strong>。<br>
+    下面请输入每一组“正面向上”的总次数，网页会自动生成表 25-3。
+</p>
+
+<h3>一、输入各组实验结果（每组 50 次）</h3>
+<table>
+    <tr>
+        <th>组号</th>
+        <th>本组“正面向上”的总次数</th>
+    </tr>
+    <!-- 10 组输入框 -->
+    <tbody>
+    <!-- 用 data-group 保存组号，方便以后扩展 -->
+    <tr><td>第 1 组</td><td><input type="number" class="group-input" data-group="1" min="0" max="50"></td></tr>
+    <tr><td>第 2 组</td><td><input type="number" class="group-input" data-group="2" min="0" max="50"></td></tr>
+    <tr><td>第 3 组</td><td><input type="number" class="group-input" data-group="3" min="0" max="50"></td></tr>
+    <tr><td>第 4 组</td><td><input type="number" class="group-input" data-group="4" min="0" max="50"></td></tr>
+    <tr><td>第 5 组</td><td><input type="number" class="group-input" data-group="5" min="0" max="50"></td></tr>
+    <tr><td>第 6 组</td><td><input type="number" class="group-input" data-group="6" min="0" max="50"></td></tr>
+    <tr><td>第 7 组</td><td><input type="number" class="group-input" data-group="7" min="0" max="50"></td></tr>
+    <tr><td>第 8 组</td><td><input type="number" class="group-input" data-group="8" min="0" max="50"></td></tr>
+    <tr><td>第 9 组</td><td><input type="number" class="group-input" data-group="9" min="0" max="50"></td></tr>
+    <tr><td>第 10 组</td><td><input type="number" class="group-input" data-group="10" min="0" max="50"></td></tr>
+    </tbody>
+</table>
+
+<button class="btn" onclick="updateTable()">生成 / 更新 表 25-3</button>
+<p class="note">
+    小提示：每组实验结束后，组长把“正面向上”的次数告诉老师，老师在这里输入。<br>
+    可以边输入边按按钮，学生一边看着频率的变化。
+</p>
+
+<h3>二、自动生成的表 25-3</h3>
+<table id="result-table">
+    <tr>
+        <th>抛掷次数 n</th>
+        <td>50</td>
+        <td>100</td>
+        <td>150</td>
+        <td>200</td>
+        <td>250</td>
+        <td>300</td>
+        <td>350</td>
+        <td>400</td>
+        <td>450</td>
+        <td>500</td>
+    </tr>
+    <tr>
+        <th>“正面向上”的次数 m</th>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+        <td class="m-cell"></td>
+    </tr>
+    <tr>
+        <th>“正面向上”的频率 m/n</th>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+        <td class="freq-cell"></td>
+    </tr>
+</table>
+
+<p class="note">
+    说明：第 1 列是第 1 组的数据（50 次）；第 2 列是第 1、2 组合在一起的数据（100 次）；<br>
+    …… 以此类推，最后一列是 10 组一共 500 次的结果。
+</p>
+
+<script>
+// 计算并更新表25-3
+function updateTable() {
+    const inputs = document.querySelectorAll('.group-input');
+    const mCells = document.querySelectorAll('.m-cell');
+    const freqCells = document.querySelectorAll('.freq-cell');
+
+    let cumulative = 0;  // 累计“正面向上”的次数
+
+    inputs.forEach((input, index) => {
+        const val = parseInt(input.value, 10);
+        // 组内没填或填错就当 0
+        const groupCount = isNaN(val) ? 0 : val;
+        cumulative += groupCount;   // 累加到当前组
+
+        const n = 50 * (index + 1); // 当前列对应的抛掷总次数
+
+        // 更新 m
+        mCells[index].textContent = cumulative > 0 ? cumulative : '';
+
+        // 更新频率 m/n，保留两位小数
+        if (cumulative > 0) {
+            const freq = cumulative / n;
+            freqCells[index].textContent = freq.toFixed(2);
+        } else {
+            freqCells[index].textContent = '';
+        }
+    });
+}
+
+// 让输入时也自动更新（不点按钮也可以）
+document.querySelectorAll('.group-input').forEach(input => {
+    input.addEventListener('input', updateTable);
+});
+</script>
+
+</body>
+</html>
