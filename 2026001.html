@@ -3,182 +3,150 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>正五边形拼圆圈（动态演示）</title>
+  <title>图6：正五边形围成空心圆圈（同向转弯拼接）</title>
   <style>
-    body{font-family: system-ui, -apple-system, "Segoe UI", Arial; margin: 12px;}
-    #wrap{display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;}
-    canvas{border:1px solid #bbb; border-radius:8px; background:#fff;}
-    .panel{min-width:320px; max-width:520px;}
+    body{font-family:system-ui,-apple-system,"Segoe UI",Arial;margin:12px;}
+    #wrap{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;}
+    canvas{border:1px solid #bbb;border-radius:8px;background:#fff;}
+    .panel{min-width:320px;max-width:520px;}
     .row{margin:8px 0;}
-    button{margin-right:8px; padding:8px 12px; border-radius:8px; border:1px solid #999; background:#f7f7f7; cursor:pointer;}
-    button:active{transform: translateY(1px);}
+    button{margin-right:8px;padding:8px 12px;border-radius:8px;border:1px solid #999;background:#f7f7f7;cursor:pointer;}
+    button:active{transform:translateY(1px);}
     .kv{line-height:1.7;}
-    .hint{font-size:14px; color:#333;}
-    input[type="range"]{width: 260px;}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+    label{margin-right:12px;}
   </style>
 </head>
 <body>
-  <div id="wrap">
-    <canvas id="cv" width="860" height="520"></canvas>
+<div id="wrap">
+  <canvas id="cv" width="900" height="540"></canvas>
 
-    <div class="panel">
-      <div class="row">
-        <button id="btnAdd">添加一个</button>
-        <button id="btnUndo">撤销</button>
-        <button id="btnReset">重置</button>
-      </div>
-      <div class="row">
-        <button id="btnAuto5">自动加到闭合</button>
-      </div>
+  <div class="panel">
+    <div class="row">
+      <button id="btnAdd">添加一个</button>
+      <button id="btnUndo">撤销</button>
+      <button id="btnReset">重置</button>
+      <button id="btnAuto">自动加到闭合</button>
+    </div>
 
-      <div class="row kv">
-        <div>已放正五边形个数：<span class="mono" id="n">0</span></div>
-        <div>累计转角（理论）：<span class="mono" id="turnDeg">0</span>°</div>
-        <div>离 360° 还差：<span class="mono" id="gapDeg">360</span>°</div>
-        <div>闭合判定（误差阈值）：<span class="mono" id="epsShow"></span></div>
-      </div>
+    <div class="row">
+      <label><input type="radio" name="turn" value="left" checked> 一直向左转（更像图6）</label>
+      <label><input type="radio" name="turn" value="right"> 一直向右转</label>
+    </div>
 
-      <div class="row">
-        <div class="hint">
-          说明：我们让每个新五边形与上一个“共用一条边”，并且每次都选“相邻的下一条边”继续拼，
-          这样链条会以固定的转角不断“转弯”，最终回到起点形成圆圈。
-        </div>
-      </div>
+    <div class="row kv">
+      <div>已放个数：<span class="mono" id="n">0</span></div>
+      <div>理论每次转角：<span class="mono">72</span>°（正五边形外角）</div>
+      <div>累计转角（理论）：<span class="mono" id="turnDeg">0</span>°</div>
+      <div>离 360° 还差：<span class="mono" id="gapDeg">360</span>°</div>
+      <div>闭合判定阈值：<span class="mono" id="epsShow"></span></div>
+    </div>
 
-      <div class="row">
-        <div>闭合误差阈值（越小越严格）：</div>
-        <input id="eps" type="range" min="0.5" max="10" step="0.5" value="2.0" />
-      </div>
+    <div class="row">
+      <div>闭合误差阈值(px)：<span class="mono" id="epsVal">2.0</span></div>
+      <input id="eps" type="range" min="0.5" max="10" step="0.5" value="2.0" style="width:260px;">
+    </div>
 
-      <div class="row hint">
-        教学建议：先让学生“手动逐个添加”，观察“每次转角是固定的”；再让他们用
-        “360° ÷ 每次转角 = 需要的个数”去验证。
-      </div>
+    <div class="row" style="color:#333;font-size:14px;line-height:1.6;">
+      关键点：图6那种“围成圈”不是左右来回拼，而是每次都在同一侧继续拼，
+      也就是链条一直同向转弯，所以会自然围出一个“中间空心”的区域，最终闭合。
     </div>
   </div>
+</div>
 
 <script>
-/* ---------------------------
-   2D 向量/几何工具
----------------------------- */
-function add(a,b){ return {x:a.x+b.x, y:a.y+b.y}; }
-function sub(a,b){ return {x:a.x-b.x, y:a.y-b.y}; }
-function mul(a,k){ return {x:a.x*k, y:a.y*k}; }
-function dot(a,b){ return a.x*b.x + a.y*b.y; }
-function len(a){ return Math.hypot(a.x,a.y); }
-function norm(a){ const L=len(a); return L===0?{x:0,y:0}:{x:a.x/L,y:a.y/L}; }
-function perp(a){ return {x:-a.y, y:a.x}; } // 左法向
-function angleOf(v){ return Math.atan2(v.y,v.x); }
-function rot(p,th){
-  const c=Math.cos(th), s=Math.sin(th);
-  return {x:p.x*c - p.y*s, y:p.x*s + p.y*c};
-}
-function dist(a,b){ return len(sub(a,b)); }
+/* 向量工具 */
+function add(a,b){return {x:a.x+b.x,y:a.y+b.y};}
+function sub(a,b){return {x:a.x-b.x,y:a.y-b.y};}
+function dot(a,b){return a.x*b.x+a.y*b.y;}
+function len(a){return Math.hypot(a.x,a.y);}
+function rot(p,th){const c=Math.cos(th),s=Math.sin(th);return {x:p.x*c-p.y*s,y:p.x*s+p.y*c};}
+function angleOf(v){return Math.atan2(v.y,v.x);}
+function perpLeft(v){return {x:-v.y,y:v.x};} // 指向“左侧”的法向
+function dist(a,b){return len(sub(a,b));}
 
-/* ---------------------------
-   生成“模板正五边形”
-   用外接圆半径 R；顶点逆时针
----------------------------- */
 function makePentagonTemplate(R){
   const pts=[];
-  // 让一个顶点朝上，视觉更直观
-  const start = -Math.PI/2;
+  const start=-Math.PI/2;
   for(let i=0;i<5;i++){
-    const th = start + i*(2*Math.PI/5);
-    pts.push({x:R*Math.cos(th), y:R*Math.sin(th)});
+    const th=start+i*(2*Math.PI/5);
+    pts.push({x:R*Math.cos(th),y:R*Math.sin(th)});
   }
   return pts;
 }
-
-/* 边 i：点 i 到点 (i+1)%5 */
-function edge(pts,i){
-  const a=pts[i], b=pts[(i+1)%5];
-  return {a,b};
-}
 function centroid(pts){
   let x=0,y=0;
-  for(const p of pts){ x+=p.x; y+=p.y; }
-  return {x:x/pts.length, y:y/pts.length};
+  for(const p of pts){x+=p.x;y+=p.y;}
+  return {x:x/pts.length,y:y/pts.length};
+}
+function edge(pts,i){
+  return {a:pts[i], b:pts[(i+1)%5]};
 }
 
-/* ---------------------------
-   把模板五边形通过“刚体变换”映射到目标边上
-   目标：模板 edge0 映射到 (A,B)，并选择“在边的指定侧”
----------------------------- */
-function placeByEdge(templatePts, A, B, wantSideSign, R){
-  // 模板选 edge0：v0 -> v1
-  const p0 = templatePts[0], p1 = templatePts[1];
-  const vT = sub(p1,p0);
-  const vW = sub(B,A);
+/* 把模板五边形贴到目标边A->B，并强制在边的“左侧/右侧” */
+function placeByEdge(templatePts, A, B, side /* +1左 -1右 */){
+  const p0=templatePts[0], p1=templatePts[1];
+  const vT=sub(p1,p0);
+  const vW=sub(B,A);
 
-  const th = angleOf(vW) - angleOf(vT);
-  const p0r = rot(p0, th);
-  const trans = sub(A, p0r);
+  const th=angleOf(vW)-angleOf(vT);
+  const p0r=rot(p0,th);
+  const trans=sub(A,p0r);
+  let placed=templatePts.map(p=>add(rot(p,th),trans));
 
-  const placed = templatePts.map(p => add(rot(p,th), trans));
-  const c = centroid(placed);
+  // 检查中心在A->B哪侧
+  const c=centroid(placed);
+  const n=perpLeft(vW);
+  const sideVal=dot(sub(c,A), n); // >0 左侧
 
-  // 判断五边形中心在 AB 的哪一侧（用有向面积/叉积符号）
-  const e = sub(B,A);
-  const n = perp(e); // 左法向
-  const side = dot(sub(c,A), n); // >0 在左侧，<0 在右侧
+  const wantLeft = (side===+1);
+  const isLeft = (sideVal>=0);
+  if((wantLeft && isLeft) || (!wantLeft && !isLeft)) return placed;
 
-  // wantSideSign: +1 代表想在左侧，-1 代表想在右侧
-  if (side*wantSideSign >= 0) return placed;
-
-  // 若不在想要的一侧，则改用“反向映射”（相当于镜像到另一侧）
-  // 让模板 edge0 映射到 (B,A)
-  const vW2 = sub(A,B);
-  const th2 = angleOf(vW2) - angleOf(vT);
-  const p0r2 = rot(p0, th2);
-  const trans2 = sub(B, p0r2);
-  return templatePts.map(p => add(rot(p,th2), trans2));
+  // 不在想要侧，则把模板边贴到 B->A（等效翻到另一侧）
+  const vW2=sub(A,B);
+  const th2=angleOf(vW2)-angleOf(vT);
+  const p0r2=rot(p0,th2);
+  const trans2=sub(B,p0r2);
+  placed=templatePts.map(p=>add(rot(p,th2),trans2));
+  return placed;
 }
 
-/* ---------------------------
-   生成拼接链条：
-   每个新五边形与上一个共享“attachEdge”那条边
-   并把新五边形的下一条边作为下一次 attachEdge（形成持续转弯）
----------------------------- */
-const cv = document.getElementById("cv");
-const ctx = cv.getContext("2d");
+/* 拼接数据结构：每个poly保存下一次要用来继续拼的“出边索引” */
+const cv=document.getElementById("cv");
+const ctx=cv.getContext("2d");
 
-const templateR = 70;
-const template = makePentagonTemplate(templateR);
+const R=72;
+const template=makePentagonTemplate(R);
+let polys=[];
 
-// 每个元素：{pts: [5点], attachEdge: int}
-let polys = [];
+function getTurnSide(){
+  const v=document.querySelector('input[name="turn"]:checked').value;
+  return (v==="left") ? +1 : -1;
+}
 
 function reset(){
-  polys = [];
-  // 放第一个在画布中心
-  const center = {x: cv.width*0.45, y: cv.height*0.55};
-  const pts = template.map(p => add(p, center));
-  polys.push({pts, attachEdge: 0});
+  polys=[];
+  const center={x:cv.width*0.45,y:cv.height*0.55};
+  const pts=template.map(p=>add(p,center));
+  // 初始“出边”取 0（你也可以改成别的边，视觉差异不影响结论）
+  polys.push({pts, outEdge:0});
   draw();
   updateInfo();
 }
 
 function addOne(){
-  const last = polys[polys.length-1];
-  const e = edge(last.pts, last.attachEdge);
-  const A = e.a, B = e.b;
+  const side=getTurnSide(); // +1 左侧拼（同向转弯），-1 右侧拼
+  const last=polys[polys.length-1];
+  const e=edge(last.pts,last.outEdge);
+  const A=e.a, B=e.b;
 
-  // 决定“想放在边的哪一侧”：我们取 last 的中心在 AB 哪侧，然后新多边形放到相反侧（保证不重叠）
-  const cLast = centroid(last.pts);
-  const dir = sub(B,A);
-  const n = perp(dir);
-  const sideLast = dot(sub(cLast, A), n);
-  const wantSideSign = sideLast >= 0 ? -1 : +1;
+  // 关键修正：不再取“相反侧”，而是固定取同一侧（一直左/一直右）
+  const newPts=placeByEdge(template, A, B, side);
 
-  const newPts = placeByEdge(template, A, B, wantSideSign, templateR);
+  // 继续沿着新五边形的相邻边往前拼：edge1（从模板意义上）
+  polys.push({pts:newPts, outEdge:1});
 
-  // 新的 attachEdge：取“共享边”在新五边形中对应的边是 edge0（因为我们用模板 edge0 去贴合）
-  // 为了持续转弯，下一次用它的相邻边：1
-  const newAttach = 1;
-
-  polys.push({pts:newPts, attachEdge:newAttach});
   draw();
   updateInfo();
 }
@@ -190,101 +158,100 @@ function undo(){
   updateInfo();
 }
 
-/* ---------------------------
-   角度统计：每次转弯角 = 72°（正五边形外角）
-   这里用“理论值”展示，方便学生归纳
----------------------------- */
+function autoClose(){
+  const eps=parseFloat(document.getElementById("eps").value);
+  let guard=80;
+  while(guard-- > 0){
+    const pStart=polys[0].pts[0];
+    const pEnd=polys[polys.length-1].pts[0];
+    if(polys.length>1 && dist(pStart,pEnd)<=eps) break;
+    addOne();
+  }
+  updateInfo();
+}
+
+/* 信息（理论角度 + 几何闭合） */
 function updateInfo(){
-  const n = polys.length;
-  document.getElementById("n").textContent = n;
+  const n=polys.length;
+  document.getElementById("n").textContent=n;
 
-  const turnPer = 72; // 正五边形外角
-  const turn = (n-1)*turnPer; // 从第二个开始每添一个相当于“转一次”
-  const turnMod = ((turn%360)+360)%360;
-  const gap = (360 - turnMod) % 360;
+  const turnPer=72;
+  const turn=(n-1)*turnPer;
+  const turnMod=((turn%360)+360)%360;
+  const gap=(360-turnMod)%360;
+  document.getElementById("turnDeg").textContent=turnMod.toFixed(0);
+  document.getElementById("gapDeg").textContent=gap.toFixed(0);
 
-  document.getElementById("turnDeg").textContent = turnMod.toFixed(0);
-  document.getElementById("gapDeg").textContent = gap.toFixed(0);
+  const eps=parseFloat(document.getElementById("eps").value);
+  document.getElementById("epsVal").textContent=eps.toFixed(1);
+  document.getElementById("epsShow").textContent=eps.toFixed(1)+" px";
 
-  const eps = parseFloat(document.getElementById("eps").value);
-  document.getElementById("epsShow").textContent = eps.toFixed(1) + " px";
+  const pStart=polys[0].pts[0];
+  const pEnd=polys[polys.length-1].pts[0];
+  const d=dist(pStart,pEnd);
 
-  // 用几何闭合检测：最后一个五边形的某个顶点是否回到第一个五边形的对应顶点附近
-  // 这里取“链条起点”= 第一个五边形的模板点0，链条终点= 最后一个五边形的模板点0
-  const pStart = polys[0].pts[0];
-  const pEnd = polys[polys.length-1].pts[0];
-  const d = dist(pStart, pEnd);
+  const msg = (n>1 && d<=eps)
+    ? `✅ 近似闭合：当前 ${n} 个五边形（同向转弯），形成“中间空心”的环。`
+    : `未闭合：起点-终点距离约 ${d.toFixed(1)} px`;
 
-  // 在画布上提示
-  const msg = (d <= eps) ? `✅ 近似闭合：需要 ${n-1} 次转弯，得到 ${n} 个五边形。` : `未闭合：起点-终点距离约 ${d.toFixed(1)} px`;
   draw(msg);
 }
 
-/* ---------------------------
-   绘图
----------------------------- */
+/* 绘图 */
 function draw(message=""){
   ctx.clearRect(0,0,cv.width,cv.height);
 
-  // 背景网格（轻）
+  // 网格
   ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.strokeStyle = "#000";
-  for(let x=0;x<cv.width;x+=40){
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,cv.height); ctx.stroke();
-  }
-  for(let y=0;y<cv.height;y+=40){
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cv.width,y); ctx.stroke();
-  }
+  ctx.globalAlpha=0.08;
+  ctx.strokeStyle="#000";
+  for(let x=0;x<cv.width;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cv.height);ctx.stroke();}
+  for(let y=0;y<cv.height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.width,y);ctx.stroke();}
   ctx.restore();
 
-  // 画多边形
-  polys.forEach((poly, idx) => {
-    const pts = poly.pts;
-
-    ctx.lineWidth = (idx===0 || idx===polys.length-1) ? 3 : 2;
+  // 五边形
+  polys.forEach((poly,idx)=>{
+    const pts=poly.pts;
+    ctx.lineWidth = (idx===polys.length-1) ? 3 : 2;
     ctx.strokeStyle = (idx===polys.length-1) ? "#d33" : "#333";
-    ctx.fillStyle = "rgba(0,0,0,0.03)";
-
+    ctx.fillStyle="rgba(0,0,0,0.03)";
     ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for(let i=1;i<5;i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<5;i++) ctx.lineTo(pts[i].x,pts[i].y);
     ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    ctx.fill(); ctx.stroke();
 
-    // 标记“共享边/下一次拼接边”
-    const e = edge(pts, poly.attachEdge);
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = "#1a73e8";
-    ctx.beginPath();
-    ctx.moveTo(e.a.x, e.a.y);
-    ctx.lineTo(e.b.x, e.b.y);
-    ctx.stroke();
+    // 标记“出边”（下一次拼接用的边）
+    const e=edge(pts,poly.outEdge);
+    ctx.lineWidth=5;
+    ctx.strokeStyle="#1a73e8";
+    ctx.beginPath(); ctx.moveTo(e.a.x,e.a.y); ctx.lineTo(e.b.x,e.b.y); ctx.stroke();
 
-    // 写序号
-    const c = centroid(pts);
+    // 序号
+    const c=centroid(pts);
     ctx.fillStyle="#111";
-    ctx.font="14px ui-monospace, Menlo, Consolas, monospace";
+    ctx.font="14px ui-monospace,Menlo,Consolas,monospace";
     ctx.fillText(String(idx+1), c.x-4, c.y+5);
   });
 
-  // 标记起点与“目标回到点”
-  const p0 = polys[0].pts[0];
+  // 起点/终点
+  const p0=polys[0].pts[0];
+  const plast=polys[polys.length-1].pts[0];
+
   ctx.fillStyle="#0b8043";
   ctx.beginPath(); ctx.arc(p0.x,p0.y,6,0,Math.PI*2); ctx.fill();
-  ctx.font="14px system-ui";
+  ctx.fillStyle="#111"; ctx.font="14px system-ui";
   ctx.fillText("起点", p0.x+10, p0.y+5);
 
-  const plast = polys[polys.length-1].pts[0];
   ctx.fillStyle="#d33";
   ctx.beginPath(); ctx.arc(plast.x,plast.y,6,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="#111";
   ctx.fillText("终点", plast.x+10, plast.y+5);
 
-  // 信息栏
+  // 标题与提示
   ctx.fillStyle="#111";
   ctx.font="16px system-ui";
-  ctx.fillText("正五边形拼圆圈：逐个添加观察“固定转角”与“闭合”", 16, 26);
+  ctx.fillText("图6拼法：每次固定在同一侧拼接（同向转弯）→ 外圈围出中间空心 → 最终闭合", 16, 26);
 
   if(message){
     ctx.fillStyle="#111";
@@ -292,37 +259,19 @@ function draw(message=""){
     ctx.fillText(message, 16, 50);
   }
 
-  // 角度提示（理论）
   ctx.fillStyle="#444";
   ctx.font="14px system-ui";
-  ctx.fillText("提示：正五边形外角 = 72°，每添一个（按相邻边继续拼）相当于再转 72°。", 16, cv.height-16);
+  ctx.fillText("观察：每添一个五边形，链条就再“转”72°；转满360°就闭合。", 16, cv.height-16);
 }
 
-/* ---------------------------
-   自动：一直加到“近似闭合”或到上限
----------------------------- */
-function autoClose(){
-  const eps = parseFloat(document.getElementById("eps").value);
-  let safety = 60;
-  while(safety-- > 0){
-    const pStart = polys[0].pts[0];
-    const pEnd = polys[polys.length-1].pts[0];
-    if(dist(pStart,pEnd) <= eps && polys.length>1) break;
-    addOne();
-  }
-  updateInfo();
-}
+/* 事件 */
+document.getElementById("btnAdd").onclick=addOne;
+document.getElementById("btnUndo").onclick=undo;
+document.getElementById("btnReset").onclick=reset;
+document.getElementById("btnAuto").onclick=autoClose;
+document.getElementById("eps").oninput=updateInfo;
+document.querySelectorAll('input[name="turn"]').forEach(r=>r.onchange=()=>{draw();updateInfo();});
 
-/* ---------------------------
-   事件绑定
----------------------------- */
-document.getElementById("btnAdd").onclick = addOne;
-document.getElementById("btnUndo").onclick = undo;
-document.getElementById("btnReset").onclick = () => { reset(); };
-document.getElementById("btnAuto5").onclick = autoClose;
-document.getElementById("eps").oninput = updateInfo;
-
-// 初始化
 reset();
 </script>
 </body>
